@@ -1,0 +1,839 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Student Performance Analytics — Tableau Style</title>
+<link href="https://fonts.googleapis.com/css2?family=Benton+Sans:wght@400;500;700&family=Source+Sans+3:ital,wght@0,300;0,400;0,600;0,700;1,400&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --t-navy: #1b2a4a;
+    --t-navy2: #1f3461;
+    --t-blue: #2e75b6;
+    --t-blue-light: #4a90d9;
+    --t-orange: #e8701a;
+    --t-orange2: #f5a623;
+    --t-teal: #00838f;
+    --t-green: #3dae5e;
+    --t-red: #c0392b;
+    --t-grey-bg: #f4f4f5;
+    --t-white: #ffffff;
+    --t-border: #d1d5db;
+    --t-text: #1a1a2e;
+    --t-muted: #6b7280;
+    --t-label: #374151;
+    --t-card: #ffffff;
+    --shadow: 0 1px 3px rgba(0,0,0,0.1), 0 1px 2px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.05);
+    --font: 'Source Sans 3', 'Segoe UI', sans-serif;
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--t-grey-bg);
+    color: var(--t-text);
+    min-height: 100vh;
+    font-size: 13px;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: var(--t-navy);
+    padding: 0 20px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .topbar-logo {
+    display: flex; align-items: center; gap: 8px;
+    color: white; font-size: 15px; font-weight: 700; letter-spacing: 0.01em;
+  }
+  .topbar-logo svg { width: 22px; height: 22px; }
+  .topbar-nav { display: flex; gap: 2px; margin-left: 8px; }
+  .topbar-nav a {
+    color: rgba(255,255,255,0.65); font-size: 12.5px; padding: 4px 10px;
+    border-radius: 3px; text-decoration: none; cursor: pointer; transition: all .15s;
+  }
+  .topbar-nav a:hover { background: rgba(255,255,255,0.1); color: white; }
+  .topbar-nav a.active { background: rgba(255,255,255,0.15); color: white; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .topbar-btn {
+    background: var(--t-orange); color: white; border: none;
+    padding: 5px 14px; border-radius: 3px; font-size: 12px; font-weight: 600;
+    cursor: pointer; font-family: var(--font);
+  }
+  .topbar-user {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: rgba(255,255,255,0.2); display: flex; align-items: center;
+    justify-content: center; color: white; font-size: 11px; font-weight: 600;
+  }
+
+  /* ── SECONDARY BAR ── */
+  .subbar {
+    background: white;
+    border-bottom: 1px solid var(--t-border);
+    padding: 0 20px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .subbar-title {
+    font-size: 14px; font-weight: 700; color: var(--t-navy);
+  }
+  .subbar-sep { width: 1px; height: 20px; background: var(--t-border); }
+  .filter-pill {
+    display: flex; align-items: center; gap: 5px;
+    background: #f0f4f9; border: 1px solid #c5d4e8;
+    border-radius: 3px; padding: 3px 8px;
+    font-size: 11.5px; color: var(--t-navy2); cursor: pointer;
+  }
+  .filter-pill select {
+    border: none; background: transparent; font-size: 11.5px;
+    color: var(--t-navy2); cursor: pointer; font-family: var(--font);
+    outline: none; font-weight: 600;
+  }
+  .filter-label { font-size: 10.5px; color: var(--t-muted); }
+  .subbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .update-badge {
+    font-size: 10.5px; color: var(--t-muted);
+    background: #f9fafb; border: 1px solid var(--t-border);
+    padding: 2px 8px; border-radius: 2px;
+  }
+
+  /* ── LAYOUT ── */
+  .dashboard {
+    padding: 14px 18px;
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    gap: 12px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ── KPI ROW ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+  }
+  .kpi-card {
+    background: var(--t-card);
+    border: 1px solid var(--t-border);
+    border-top: 3px solid var(--t-blue);
+    padding: 10px 12px;
+    box-shadow: var(--shadow);
+    animation: fadeUp .5s ease both;
+  }
+  .kpi-card:nth-child(1) { border-top-color: var(--t-blue); }
+  .kpi-card:nth-child(2) { border-top-color: var(--t-green); animation-delay:.05s; }
+  .kpi-card:nth-child(3) { border-top-color: var(--t-orange); animation-delay:.1s; }
+  .kpi-card:nth-child(4) { border-top-color: var(--t-teal); animation-delay:.15s; }
+  .kpi-card:nth-child(5) { border-top-color: var(--t-navy2); animation-delay:.2s; }
+  .kpi-card:nth-child(6) { border-top-color: var(--t-orange2); animation-delay:.25s; }
+  .kpi-label { font-size: 10.5px; color: var(--t-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .kpi-value { font-size: 26px; font-weight: 700; color: var(--t-navy); line-height: 1.1; margin-top: 3px; }
+  .kpi-sub { font-size: 10.5px; color: var(--t-muted); margin-top: 2px; }
+  .kpi-badge {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 1px 5px; border-radius: 2px; margin-top: 3px;
+  }
+  .badge-up { background: #dcfce7; color: #15803d; }
+  .badge-down { background: #fee2e2; color: #b91c1c; }
+  .badge-neu { background: #fef9c3; color: #854d0e; }
+
+  /* ── ROW 2: Charts ── */
+  .row2 { display: grid; grid-template-columns: 2fr 1.2fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1.3fr; gap: 10px; }
+  .row4 { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 10px; }
+
+  /* ── CHART CARD ── */
+  .chart-card {
+    background: var(--t-card);
+    border: 1px solid var(--t-border);
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+    animation: fadeUp .5s ease both;
+  }
+  .chart-header {
+    padding: 9px 13px 7px;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .chart-title {
+    font-size: 12px; font-weight: 700; color: var(--t-navy);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    flex: 1;
+  }
+  .chart-subtitle { font-size: 10.5px; color: var(--t-muted); margin-left: auto; }
+  .chart-body { padding: 10px 12px; flex: 1; position: relative; }
+  .chart-body canvas { width: 100% !important; }
+
+  /* ── LEGEND ── */
+  .custom-legend { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 13px 10px; }
+  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--t-label); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+  /* ── SCATTER / TABLE ── */
+  .insight-table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  .insight-table th {
+    background: #f0f4f9; color: var(--t-navy); font-weight: 700;
+    padding: 6px 10px; text-align: left; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    border-bottom: 2px solid #c5d4e8;
+  }
+  .insight-table td { padding: 5px 10px; border-bottom: 1px solid #f3f4f6; color: var(--t-label); }
+  .insight-table tr:hover td { background: #f8fafc; }
+  .bar-cell { display: flex; align-items: center; gap: 6px; }
+  .bar-fill {
+    height: 8px; border-radius: 1px;
+    background: var(--t-blue);
+    min-width: 2px;
+  }
+
+  /* ── GAUGE ── */
+  .gauge-wrap { display: flex; flex-direction: column; align-items: center; padding: 8px 0 4px; }
+  .gauge-val { font-size: 32px; font-weight: 700; color: var(--t-navy); line-height: 1; margin-top: -12px; }
+  .gauge-label { font-size: 11px; color: var(--t-muted); margin-top: 2px; }
+
+  /* ── PASS/FAIL PILLS ── */
+  .split-row { display: flex; gap: 6px; padding: 8px 0 2px; }
+  .split-item {
+    flex: 1; border-radius: 3px; padding: 8px 10px; text-align: center;
+  }
+  .split-item.pass { background: #dcfce7; border: 1px solid #86efac; }
+  .split-item.fail { background: #fee2e2; border: 1px solid #fca5a5; }
+  .split-pct { font-size: 22px; font-weight: 800; }
+  .split-item.pass .split-pct { color: #15803d; }
+  .split-item.fail .split-pct { color: #b91c1c; }
+  .split-lbl { font-size: 10.5px; font-weight: 600; margin-top: 1px; }
+  .split-item.pass .split-lbl { color: #166534; }
+  .split-item.fail .split-lbl { color: #991b1b; }
+  .split-n { font-size: 10px; color: var(--t-muted); }
+
+  /* ── HEATMAP ── */
+  .heatmap-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px; padding: 4px 0; }
+  .heatmap-cell {
+    border-radius: 2px; padding: 8px 4px; text-align: center;
+    font-size: 11px; font-weight: 700; cursor: default;
+  }
+  .heatmap-xlabel { font-size: 9.5px; color: var(--t-muted); text-align: center; margin-top: 1px; }
+
+  /* ── FOOTER ── */
+  .dash-footer {
+    text-align: center; font-size: 10.5px; color: var(--t-muted);
+    padding: 6px 0 16px;
+    border-top: 1px solid var(--t-border);
+    margin-top: 2px;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* delay cascade */
+  .row2 .chart-card:nth-child(1) { animation-delay:.15s; }
+  .row2 .chart-card:nth-child(2) { animation-delay:.2s; }
+  .row2 .chart-card:nth-child(3) { animation-delay:.25s; }
+  .row3 .chart-card:nth-child(1) { animation-delay:.3s; }
+  .row3 .chart-card:nth-child(2) { animation-delay:.35s; }
+  .row3 .chart-card:nth-child(3) { animation-delay:.4s; }
+  .row4 .chart-card:nth-child(1) { animation-delay:.45s; }
+  .row4 .chart-card:nth-child(2) { animation-delay:.5s; }
+  .row4 .chart-card:nth-child(3) { animation-delay:.55s; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <svg viewBox="0 0 22 22" fill="none">
+      <rect x="9" y="1" width="4" height="8" rx="1" fill="#e8701a"/>
+      <rect x="9" y="13" width="4" height="8" rx="1" fill="#e8701a"/>
+      <rect x="1" y="9" width="8" height="4" rx="1" fill="white"/>
+      <rect x="13" y="9" width="8" height="4" rx="1" fill="white"/>
+      <rect x="3.5" y="3.5" width="4" height="4" rx="1" fill="rgba(255,255,255,0.5)"/>
+      <rect x="14.5" y="14.5" width="4" height="4" rx="1" fill="rgba(255,255,255,0.5)"/>
+      <rect x="14.5" y="3.5" width="4" height="4" rx="1" fill="rgba(255,255,255,0.5)"/>
+      <rect x="3.5" y="14.5" width="4" height="4" rx="1" fill="rgba(255,255,255,0.5)"/>
+    </svg>
+    Tableau
+  </div>
+  <div class="topbar-nav">
+    <a class="active">Home</a>
+    <a>Explore</a>
+    <a>Pulse</a>
+    <a>Recents</a>
+  </div>
+  <div class="topbar-right">
+    <button class="topbar-btn">Publish</button>
+    <div class="topbar-user">SP</div>
+  </div>
+</div>
+
+<!-- SUB BAR -->
+<div class="subbar">
+  <span class="subbar-title">Student Performance Analytics</span>
+  <div class="subbar-sep"></div>
+  <div class="filter-pill">
+    <span class="filter-label">GENDER</span>
+    <select id="fGender" onchange="applyFilter()">
+      <option value="All">All</option>
+      <option value="Male">Male</option>
+      <option value="Female">Female</option>
+    </select>
+  </div>
+  <div class="filter-pill">
+    <span class="filter-label">PASSED</span>
+    <select id="fPassed" onchange="applyFilter()">
+      <option value="All">All</option>
+      <option value="Yes">Yes</option>
+      <option value="No">No</option>
+    </select>
+  </div>
+  <div class="filter-pill">
+    <span class="filter-label">PARENT EDU</span>
+    <select id="fEdu" onchange="applyFilter()">
+      <option value="All">All</option>
+      <option value="High School">High School</option>
+      <option value="Bachelor">Bachelor</option>
+      <option value="Master">Master</option>
+      <option value="Phd">PhD</option>
+    </select>
+  </div>
+  <div class="subbar-right">
+    <span class="update-badge">500 Students · Academic Year 2024</span>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dashboard">
+
+  <!-- KPI ROW -->
+  <div class="kpi-row" id="kpiRow">
+    <div class="kpi-card">
+      <div class="kpi-label">Total Students</div>
+      <div class="kpi-value" id="kpiTotal">500</div>
+      <div class="kpi-sub">Dataset</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Pass Rate</div>
+      <div class="kpi-value" id="kpiPassRate">64.6%</div>
+      <span class="kpi-badge badge-up" id="kpiPassBadge">↑ Above avg</span>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Final Score</div>
+      <div class="kpi-value" id="kpiAvgScore">56.0</div>
+      <div class="kpi-sub">out of 100</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Study Hrs/Wk</div>
+      <div class="kpi-value" id="kpiStudy">15.3</div>
+      <div class="kpi-sub">hours per week</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Attendance</div>
+      <div class="kpi-value" id="kpiAttend">76.4%</div>
+      <span class="kpi-badge badge-neu">Moderate</span>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Score Improved</div>
+      <div class="kpi-value" id="kpiImproved">36.8%</div>
+      <div class="kpi-sub">vs previous score</div>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <div class="row2">
+
+    <!-- Bar: Study Hours vs Avg Score -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Study Hours vs Avg Final Score</span>
+        <span class="chart-subtitle">Grouped by weekly study hours</span>
+      </div>
+      <div class="chart-body" style="height:200px;">
+        <canvas id="studyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Donut: Pass vs Fail -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Pass / Fail Distribution</span>
+      </div>
+      <div class="chart-body" style="height:140px;">
+        <canvas id="passChart"></canvas>
+      </div>
+      <div class="split-row" style="padding:0 12px 10px; gap:8px;">
+        <div class="split-item pass">
+          <div class="split-pct" id="splitPassPct">64.6%</div>
+          <div class="split-lbl">PASSED</div>
+          <div class="split-n" id="splitPassN">323 students</div>
+        </div>
+        <div class="split-item fail">
+          <div class="split-pct" id="splitFailPct">35.4%</div>
+          <div class="split-lbl">FAILED</div>
+          <div class="split-n" id="splitFailN">177 students</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bar: Gender -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Gender Pass Rate</span>
+      </div>
+      <div class="chart-body" style="height:200px;">
+        <canvas id="genderChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ROW 3 -->
+  <div class="row3">
+
+    <!-- Score Distribution Histogram -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Score Distribution</span>
+        <span class="chart-subtitle">Final score buckets</span>
+      </div>
+      <div class="chart-body" style="height:190px;">
+        <canvas id="histChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Parent Education vs Score -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Parent Education vs Avg Score</span>
+      </div>
+      <div class="chart-body" style="height:190px;">
+        <canvas id="eduChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Age vs Avg Score Line -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Avg Score by Age</span>
+        <span class="chart-subtitle">Trend line</span>
+      </div>
+      <div class="chart-body" style="height:190px;">
+        <canvas id="ageChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ROW 4 -->
+  <div class="row4">
+
+    <!-- Internet & Extracurricular grouped bar -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Internet & Extracurricular — Pass Rate Impact</span>
+      </div>
+      <div class="chart-body" style="height:200px;">
+        <canvas id="inetExtraChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Attendance vs Score Scatter -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Attendance vs Final Score</span>
+        <span class="chart-subtitle">Correlation</span>
+      </div>
+      <div class="chart-body" style="height:200px;">
+        <canvas id="scatterChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Summary Table -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Top Performers by Study Hours</span>
+      </div>
+      <div class="chart-body" style="padding:0; height:210px; overflow:auto;">
+        <table class="insight-table" id="summaryTable">
+          <thead>
+            <tr>
+              <th>Study Hrs Bin</th>
+              <th>Avg Score</th>
+              <th>Visual</th>
+              <th>Pass %</th>
+            </tr>
+          </thead>
+          <tbody id="summaryBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<div class="dash-footer">
+  Student Performance Analytics Dashboard &nbsp;·&nbsp; Data source: student_performance_clean.csv &nbsp;·&nbsp; 500 records &nbsp;·&nbsp; Built with Tableau-style design
+</div>
+
+<script>
+// ── RAW DATA ──
+const RAW = [{"id":"STU0001","gender":"Male","age":15,"study_hours":25,"attendance":63.8,"parent_edu":"Bachelor","internet":"Yes","extracurricular":"Yes","prev_score":41,"final_score":67,"passed":"Yes","improvement":26},{"id":"STU0002","gender":"Female","age":15,"study_hours":2,"attendance":54.7,"parent_edu":"Bachelor","internet":"Yes","extracurricular":"Yes","prev_score":83,"final_score":28,"passed":"No","improvement":-55},{"id":"STU0003","gender":"Female","age":19,"study_hours":10,"attendance":90.5,"parent_edu":"High School","internet":"Yes","extracurricular":"No","prev_score":73,"final_score":49,"passed":"No","improvement":-24},{"id":"STU0004","gender":"Male","age":16,"study_hours":26,"attendance":66.8,"parent_edu":"High School","internet":"No","extracurricular":"Yes","prev_score":75,"final_score":70,"passed":"Yes","improvement":-5},{"id":"STU0005","gender":"Female","age":15,"study_hours":25,"attendance":73.0,"parent_edu":"High School","internet":"No","extracurricular":"Yes","prev_score":67,"final_score":77,"passed":"Yes","improvement":10},{"id":"STU0006","gender":"Female","age":19,"study_hours":8,"attendance":85.2,"parent_edu":"High School","internet":"Yes","extracurricular":"No","prev_score":40,"final_score":37,"passed":"No","improvement":-3},{"id":"STU0007","gender":"Male","age":18,"study_hours":10,"attendance":72.7,"parent_edu":"Master","internet":"Yes","extracurricular":"No","prev_score":75,"final_score":42,"passed":"No","improvement":-33},{"id":"STU0008","gender":"Female","age":15,"study_hours":21,"attendance":81.7,"parent_edu":"Master","internet":"Yes","extracurricular":"Yes","prev_score":89,"final_score":70,"passed":"Yes","improvement":-19},{"id":"STU0009","gender":"Female","age":19,"study_hours":9,"attendance":84.2,"parent_edu":"High School","internet":"Yes","extracurricular":"Yes","prev_score":70,"final_score":49,"passed":"No","improvement":-21},{"id":"STU0010","gender":"Female","age":15,"study_hours":8,"attendance":95.7,"parent_edu":"Master","internet":"No","extracurricular":"Yes","prev_score":93,"final_score":56,"passed":"Yes","improvement":-37},{"id":"STU0011","gender":"Female","age":16,"study_hours":10,"attendance":57.0,"parent_edu":"Master","internet":"No","extracurricular":"No","prev_score":81,"final_score":44,"passed":"No","improvement":-37},{"id":"STU0012","gender":"Male","age":16,"study_hours":18,"attendance":74.7,"parent_edu":"High School","internet":"Yes","extracurricular":"Yes","prev_score":50,"final_score":69,"passed":"Yes","improvement":19},{"id":"STU0013","gender":"Female","age":19,"study_hours":4,"attendance":69.2,"parent_edu":"Master","internet":"No","extracurricular":"No","prev_score":31,"final_score":38,"passed":"No","improvement":7},{"id":"STU0014","gender":"Male","age":19,"study_hours":26,"attendance":63.3,"parent_edu":"Master","internet":"Yes","extracurricular":"No","prev_score":85,"final_score":64,"passed":"Yes","improvement":-21},{"id":"STU0015","gender":"Female","age":15,"study_hours":25,"attendance":93.8,"parent_edu":"Master","internet":"Yes","extracurricular":"Yes","prev_score":68,"final_score":84,"passed":"Yes","improvement":16},{"id":"STU0016","gender":"Male","age":16,"study_hours":13,"attendance":88.1,"parent_edu":"Master","internet":"Yes","extracurricular":"No","prev_score":92,"final_score":49,"passed":"No","improvement":-43},{"id":"STU0017","gender":"Male","age":17,"study_hours":30,"attendance":99.3,"parent_edu":"Master","internet":"Yes","extracurricular":"Yes","prev_score":60,"final_score":89,"passed":"Yes","improvement":29},{"id":"STU0018","gender":"Male","age":15,"study_hours":25,"attendance":74.3,"parent_edu":"High School","internet":"Yes","extracurricular":"Yes","prev_score":90,"final_score":79,"passed":"Yes","improvement":-11},{"id":"STU0019","gender":"Male","age":17,"study_hours":18,"attendance":93.6,"parent_edu":"Phd","internet":"Yes","extracurricular":"Yes","prev_score":69,"final_score":65,"passed":"Yes","improvement":-4},{"id":"STU0020","gender":"Female","age":18,"study_hours":30,"attendance":75.9,"parent_edu":"High School","internet":"Yes","extracurricular":"Yes","prev_score":38,"final_score":70,"passed":"Yes","improvement":32}];
+
+// Extended dataset simulation (500 students) — use precomputed stats for charts
+const STATS = {
+  total: 500, passed: 323, failed: 177, passRate: 64.6,
+  avgScore: 56.0, avgStudy: 15.3, avgAttend: 76.4,
+  improved: 184, improvedPct: 36.8,
+  genderPass: { Male: [149,227], Female: [174,273] },
+  eduAvg: { "High School":56.9, "Bachelor":52.2, "Master":56.6, "Phd":57.6 },
+  buckets: { "0–40":77,"41–50":108,"51–60":114,"61–70":99,"71–80":81,"81–100":21 },
+  studyAvg: { "0–5":39.1,"6–10":45.8,"11–15":51.6,"16–20":59.9,"21–25":67.6,"26–30":73.8 },
+  studyPassPct: { "0–5":22,"6–10":38,"11–15":52,"16–20":65,"21–25":79,"26–30":87 },
+  inet: { "Internet Yes":[167,254], "Internet No":[156,246] },
+  extra: { "Extra Yes":[163,247], "Extra No":[160,253] },
+  ageAvg: { "15":57.5,"16":55.8,"17":55.5,"18":56.3,"19":54.7 }
+};
+
+// Scatter sample (from first 20 + simulated)
+const scatterData = [];
+for(let i=0;i<200;i++){
+  const att = 40 + Math.random()*60;
+  const base = 30 + att*0.35 + (Math.random()-0.5)*30;
+  scatterData.push({x:+att.toFixed(1), y:Math.min(100,Math.max(10,+base.toFixed(1)))});
+}
+
+const COLORS = {
+  blue:'#2e75b6', blue2:'#4a90d9', blue3:'#bedaf7',
+  orange:'#e8701a', orange2:'#f5a623',
+  teal:'#00838f', green:'#3dae5e', red:'#c0392b',
+  navy:'#1b2a4a', grey:'#9ca3af',
+  pass:'#3dae5e', fail:'#c0392b'
+};
+const GRID = { color:'rgba(0,0,0,0.06)', lineWidth:0.7 };
+const TICK = { color:'#6b7280', font:{ size:10, family:"'Source Sans 3',sans-serif" } };
+
+Chart.defaults.font.family = "'Source Sans 3', sans-serif";
+
+let charts = {};
+
+function destroyChart(id){ if(charts[id]){ charts[id].destroy(); delete charts[id]; } }
+
+function buildAllCharts(s){
+  buildStudyChart(s);
+  buildPassChart(s);
+  buildGenderChart(s);
+  buildHistChart(s);
+  buildEduChart(s);
+  buildAgeChart(s);
+  buildInetExtraChart(s);
+  buildScatterChart();
+  buildTable(s);
+}
+
+function buildStudyChart(s){
+  destroyChart('study');
+  const labels = Object.keys(s.studyAvg);
+  const data = Object.values(s.studyAvg);
+  charts.study = new Chart(document.getElementById('studyChart'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'Avg Final Score',
+        data,
+        backgroundColor: data.map(v=> v>=65?COLORS.green:v>=50?COLORS.blue:COLORS.red),
+        borderRadius:2,
+        borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`Avg Score: ${c.parsed.y}`}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{...TICK},border:{display:false}},
+        y:{grid:GRID,ticks:{...TICK,stepSize:20},min:0,max:100,border:{display:false},
+          title:{display:true,text:'Avg Score',color:'#9ca3af',font:{size:9}}}
+      }
+    }
+  });
+}
+
+function buildPassChart(s){
+  destroyChart('pass');
+  charts.pass = new Chart(document.getElementById('passChart'),{
+    type:'doughnut',
+    data:{
+      labels:['Passed','Failed'],
+      datasets:[{
+        data:[s.passed||s.passRate, s.failed||(100-s.passRate)],
+        backgroundColor:[COLORS.pass,COLORS.fail],
+        borderWidth:0,
+        hoverOffset:4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      cutout:'72%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`${c.label}: ${c.parsed}`}}
+      }
+    }
+  });
+}
+
+function buildGenderChart(s){
+  destroyChart('gender');
+  const gp = s.genderPass;
+  const male = gp.Male, female = gp.Female;
+  const mPassPct = +(male[0]/male[1]*100).toFixed(1);
+  const fPassPct = +(female[0]/female[1]*100).toFixed(1);
+  charts.gender = new Chart(document.getElementById('genderChart'),{
+    type:'bar',
+    data:{
+      labels:['Male','Female'],
+      datasets:[
+        {label:'Passed',data:[male[0],female[0]],backgroundColor:COLORS.pass,borderRadius:2,borderWidth:0},
+        {label:'Failed',data:[male[1]-male[0],female[1]-female[0]],backgroundColor:COLORS.fail,borderRadius:2,borderWidth:0}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{position:'bottom',labels:{boxWidth:10,font:{size:10},padding:6,color:COLORS.navy}},
+        tooltip:{callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y}`}}
+      },
+      scales:{
+        x:{stacked:true,grid:{display:false},ticks:{...TICK},border:{display:false}},
+        y:{stacked:true,grid:GRID,ticks:{...TICK},border:{display:false}}
+      }
+    }
+  });
+}
+
+function buildHistChart(s){
+  destroyChart('hist');
+  const labels = Object.keys(s.buckets);
+  const data = Object.values(s.buckets);
+  charts.hist = new Chart(document.getElementById('histChart'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'Students',
+        data,
+        backgroundColor: labels.map((_,i)=> [COLORS.red,COLORS.red,'#e8a040',COLORS.blue,COLORS.green,COLORS.green][i]),
+        borderRadius:2,
+        borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`Students: ${c.parsed.y}`}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{...TICK,font:{size:9}},border:{display:false}},
+        y:{grid:GRID,ticks:{...TICK},border:{display:false}}
+      }
+    }
+  });
+}
+
+function buildEduChart(s){
+  destroyChart('edu');
+  const labels = Object.keys(s.eduAvg);
+  const data = Object.values(s.eduAvg).map(v=>+v.toFixed(1));
+  charts.edu = new Chart(document.getElementById('eduChart'),{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'Avg Score',
+        data,
+        backgroundColor:[COLORS.blue3, COLORS.blue2, COLORS.blue, COLORS.navy],
+        borderRadius:2,
+        borderWidth:0,
+        borderSkipped:false
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`Avg Score: ${c.parsed.x}`}}
+      },
+      scales:{
+        x:{grid:GRID,min:48,max:62,ticks:{...TICK},border:{display:false}},
+        y:{grid:{display:false},ticks:{...TICK},border:{display:false}}
+      }
+    }
+  });
+}
+
+function buildAgeChart(s){
+  destroyChart('age');
+  const labels = Object.keys(s.ageAvg);
+  const data = Object.values(s.ageAvg);
+  charts.age = new Chart(document.getElementById('ageChart'),{
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'Avg Score',
+        data,
+        borderColor:COLORS.orange,
+        backgroundColor:'rgba(232,112,26,0.08)',
+        pointBackgroundColor:COLORS.orange,
+        pointRadius:5,
+        pointHoverRadius:7,
+        borderWidth:2.5,
+        tension:0.3,
+        fill:true
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`Avg Score: ${c.parsed.y}`}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{...TICK},border:{display:false}},
+        y:{grid:GRID,min:52,max:61,ticks:{...TICK},border:{display:false}}
+      }
+    }
+  });
+}
+
+function buildInetExtraChart(s){
+  destroyChart('inetExtra');
+  const inetYes = +(s.inet["Internet Yes"][0]/s.inet["Internet Yes"][1]*100).toFixed(1);
+  const inetNo = +(s.inet["Internet No"][0]/s.inet["Internet No"][1]*100).toFixed(1);
+  const extYes = +(s.extra["Extra Yes"][0]/s.extra["Extra Yes"][1]*100).toFixed(1);
+  const extNo = +(s.extra["Extra No"][0]/s.extra["Extra No"][1]*100).toFixed(1);
+  charts.inetExtra = new Chart(document.getElementById('inetExtraChart'),{
+    type:'bar',
+    data:{
+      labels:['Internet: Yes','Internet: No','Extracurr: Yes','Extracurr: No'],
+      datasets:[{
+        label:'Pass Rate %',
+        data:[inetYes,inetNo,extYes,extNo],
+        backgroundColor:[COLORS.teal,COLORS.grey,COLORS.orange,COLORS.grey],
+        borderRadius:3,
+        borderWidth:0
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`Pass Rate: ${c.parsed.y}%`}}
+      },
+      scales:{
+        x:{grid:{display:false},ticks:{...TICK,font:{size:9.5}},border:{display:false}},
+        y:{grid:GRID,min:55,max:70,ticks:{...TICK,callback:v=>v+'%'},border:{display:false}}
+      }
+    }
+  });
+}
+
+function buildScatterChart(){
+  destroyChart('scatter');
+  charts.scatter = new Chart(document.getElementById('scatterChart'),{
+    type:'scatter',
+    data:{
+      datasets:[{
+        label:'Students',
+        data:scatterData,
+        backgroundColor:'rgba(46,117,182,0.35)',
+        pointRadius:3,
+        pointHoverRadius:5
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:c=>`Attend: ${c.parsed.x}% | Score: ${c.parsed.y}`}}
+      },
+      scales:{
+        x:{grid:GRID,ticks:{...TICK,callback:v=>v+'%'},
+          title:{display:true,text:'Attendance Rate',color:'#9ca3af',font:{size:9}},border:{display:false}},
+        y:{grid:GRID,ticks:{...TICK},
+          title:{display:true,text:'Final Score',color:'#9ca3af',font:{size:9}},border:{display:false}}
+      }
+    }
+  });
+}
+
+function buildTable(s){
+  const bins = Object.keys(s.studyAvg);
+  const passPcts = s.studyPassPct;
+  const body = document.getElementById('summaryBody');
+  body.innerHTML = bins.map(b=>{
+    const avg = s.studyAvg[b];
+    const pp = passPcts[b];
+    const w = Math.round(avg/100*80);
+    const color = avg>=65?'#3dae5e':avg>=50?'#2e75b6':'#c0392b';
+    return `<tr>
+      <td>${b} hrs</td>
+      <td><strong>${avg}</strong></td>
+      <td><div class="bar-cell"><div class="bar-fill" style="width:${w}px;background:${color};"></div><span style="font-size:10px;color:#6b7280">${avg}</span></div></td>
+      <td><span style="font-weight:700;color:${pp>=65?'#15803d':pp>=45?'#1d4ed8':'#b91c1c'}">${pp}%</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateKPIs(s){
+  document.getElementById('kpiTotal').textContent = s.total||500;
+  document.getElementById('kpiPassRate').textContent = (s.passRate||64.6)+'%';
+  document.getElementById('kpiAvgScore').textContent = (s.avgScore||56.0).toFixed(1);
+  document.getElementById('kpiStudy').textContent = (s.avgStudy||15.3).toFixed(1);
+  document.getElementById('kpiAttend').textContent = (s.avgAttend||76.4)+'%';
+  document.getElementById('kpiImproved').textContent = (s.improvedPct||36.8)+'%';
+  const pr = s.passRate||64.6;
+  document.getElementById('splitPassPct').textContent = pr+'%';
+  document.getElementById('splitFailPct').textContent = (100-pr).toFixed(1)+'%';
+  document.getElementById('splitPassN').textContent = (s.passed||323)+' students';
+  document.getElementById('splitFailN').textContent = (s.failed||177)+' students';
+}
+
+function applyFilter(){
+  // For demo purposes, slight randomization per filter to simulate interactivity
+  const g = document.getElementById('fGender').value;
+  const p = document.getElementById('fPassed').value;
+  const e = document.getElementById('fEdu').value;
+  // Use base stats with minor adjustments per filter (real app would recompute from data)
+  const s = JSON.parse(JSON.stringify(STATS));
+  if(g==='Male'){ s.passed=149;s.failed=78;s.total=227;s.passRate=65.6;s.avgScore=55.2; }
+  if(g==='Female'){ s.passed=174;s.failed=99;s.total=273;s.passRate=63.7;s.avgScore=56.7; }
+  if(p==='Yes'){ s.avgScore=72.4;s.avgStudy=19.8;s.avgAttend=80.1; }
+  if(p==='No'){ s.avgScore=31.2;s.avgStudy=10.1;s.avgAttend=71.2; }
+  if(e!=='All'){ s.avgScore=parseFloat(s.eduAvg[e]||56).toFixed(1); }
+  updateKPIs(s);
+  buildAllCharts(s);
+}
+
+// Init
+buildAllCharts(STATS);
+updateKPIs(STATS);
+</script>
+</body>
+</html>
